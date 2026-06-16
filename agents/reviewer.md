@@ -40,8 +40,8 @@ When invoked, follow these steps:
 - Focus on high-impact issues only
 - Skip style nitpicks and formatting
 - Provide actionable feedback with specific fixes
-- Only block deployment for security issues
-- Review post-deployment if needed for speed
+- Use `REQUEST_CHANGES` deliberately — reserve it for security issues, critical bugs, and changes likely to break production. In `/team-ship`, `REQUEST_CHANGES` forces a dev fix loop before tests run, so the verdict carries real weight.
+- Use `APPROVE_WITH_WARNINGS` when issues are real but non-blocking (style debt, minor performance, recoverable bugs) — the workflow proceeds and devs can address warnings later.
 - Be concise — developers should spend time fixing, not reading reviews
 - **Grade outputs, not process** — evaluate what was produced, not the path taken to produce it
 - **Use concrete grading criteria** — translate subjective quality judgments into measurable dimensions

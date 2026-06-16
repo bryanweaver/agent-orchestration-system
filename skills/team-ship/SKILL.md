@@ -36,14 +36,19 @@ Create the following task list with dependencies:
 | 3 | Implement database/data layer changes (if needed) | database-admin | 1 |
 | 4 | Commit all changes with conventional message | shipper | 2, 3 |
 | 5 | Review implementation for security, bugs, performance | reviewer | 4 |
-| 6 | Run full test suite | shipper | 5 |
-| 7 | Fix regressions (if tests fail — loop back to 6) | full-stack-developer | 6 |
-| 8 | Update documentation for feature changes | documentor | 6 |
-| 9 | Deploy and create PR to main | shipper | 6, 8 |
+| 6 | Fix review findings (only if reviewer returns `REQUEST_CHANGES`) | full-stack-developer + database-admin | 5 |
+| 7 | Run full test suite | shipper | 5 (verdict `APPROVE` or `APPROVE_WITH_WARNINGS`) |
+| 8 | Fix regressions (if tests fail — loop back to 7) | full-stack-developer | 7 |
+| 9 | Update documentation for feature changes | documentor | 7 |
+| 10 | Deploy and create PR to main | shipper | 7, 9 |
 
-**Parallelism:** Tasks 2 and 3 can run simultaneously after task 1 completes.
+**Parallelism:**
+- Tasks 2 and 3 run simultaneously after task 1.
+- If task 6 fires, application and data fixes can run simultaneously.
 
-**Loop:** If task 6 finds failures, create task 7 to fix them, then re-run task 6.
+**Loops:**
+- **Review gate:** If task 5 returns `REQUEST_CHANGES`, create task 6 (fix findings) and re-run task 5. Repeat until the verdict is `APPROVE` or `APPROVE_WITH_WARNINGS`. Tasks 7+ stay blocked until the gate clears.
+- **Test gate:** If task 7 finds failures, create task 8 (fix regressions) and re-run task 7.
 
 ### Without Agent Teams (fallback)
 
@@ -54,32 +59,24 @@ Execute sequentially using the Task tool:
 3. `Task(database-admin, "Implement data layer changes for: $ARGUMENTS")` — only if needed
 4. `Task(shipper, "Commit all changes with message: feat: <description>")`
 5. `Task(reviewer, "Review the implementation on this branch")`
-6. `Task(shipper, "Run full test suite")`
-7. If tests fail: `Task(full-stack-developer, "Fix test failures: <failure details>")`
-8. `Task(documentor, "Update documentation for: $ARGUMENTS")`
-9. `Task(shipper, "Deploy and create PR to main")`
+6. If reviewer returns `REQUEST_CHANGES`: `Task(full-stack-developer, "Fix review findings: <findings>")` (and `Task(database-admin, ...)` if data-layer findings), then re-run step 5. Loop until APPROVE or APPROVE_WITH_WARNINGS.
+7. `Task(shipper, "Run full test suite")`
+8. If tests fail: `Task(full-stack-developer, "Fix test failures: <failure details>")`, then re-run step 7
+9. `Task(documentor, "Update documentation for: $ARGUMENTS")`
+10. `Task(shipper, "Deploy and create PR to main")`
 
 ## Workflow Diagram
 
 ```text
-┌─────────┐     ┌──────────────────┐     ┌─────────┐     ┌──────────┐     ┌─────────┐
-│ Shipper │────►│ Full Stack Dev   │────►│ Shipper │────►│ Reviewer │────►│ Shipper │
-│ Branch  │     │ + DB Admin (||)  │     │ Commit  │     │  Review  │     │Run Tests│
-└─────────┘     └──────────────────┘     └─────────┘     └──────────┘     └────┬────┘
-                                                                               │
-                                                         ┌────────────────────┴──────┐
-                                                         │                           │
-                                                    [Tests Pass]              [Tests Fail]
-                                                         │                           │
-                                                         ▼                           ▼
-                                                  ┌────────────┐            ┌──────────────┐
-                                                  │ Documentor │            │Full Stack Dev│
-                                                  │ Update Docs│            │Fix & Re-test │
-                                                  └─────┬──────┘            └──────────────┘
-                                                        │
-                                                        ▼
-                                                  ┌──────────┐
-                                                  │ Shipper  │
-                                                  │Deploy+PR │
-                                                  └──────────┘
+┌─────────┐   ┌──────────────────┐   ┌─────────┐   ┌──────────┐   ┌─────────┐   ┌────────────┐   ┌──────────┐
+│ Shipper │──►│ Full-Stack Dev + │──►│ Shipper │──►│ Reviewer │──►│ Shipper │──►│ Documentor │──►│ Shipper  │
+│ Branch  │   │  DB Admin  (║)   │   │ Commit  │   │  Review  │   │  Test   │   │ Update Docs│   │Deploy+PR │
+└─────────┘   └──────────────────┘   └─────────┘   └────┬─────┘   └────┬────┘   └────────────┘   └──────────┘
+                                                       │ ▲             │ ▲
+                                                       ▼ │             ▼ │
+                                          [REQUEST_CHANGES]     [test failures]
+                                          Dev fixes findings    Dev fixes regressions
+                                          → re-review           → re-run tests
+
+  Tests stay blocked until reviewer returns APPROVE or APPROVE_WITH_WARNINGS.
 ```

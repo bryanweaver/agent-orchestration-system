@@ -127,17 +127,27 @@ The **Full Stack Developer** and **Database Admin** agents are stack-adaptive �
 ### `/team-ship` — Build and Deploy Features
 
 ```text
-Shipper ──► Full Stack Dev + DB Admin (parallel) ──► Shipper ──► Reviewer ──► Shipper ──► Documentor ──► Shipper
-Branch       Implement feature                       Commit       Review       Test         Update Docs    Deploy+PR
+┌─────────┐   ┌──────────────────┐   ┌─────────┐   ┌──────────┐   ┌─────────┐   ┌────────────┐   ┌──────────┐
+│ Shipper │──►│ Full-Stack Dev + │──►│ Shipper │──►│ Reviewer │──►│ Shipper │──►│ Documentor │──►│ Shipper  │
+│ Branch  │   │  DB Admin  (║)   │   │ Commit  │   │  Review  │   │  Test   │   │ Update Docs│   │Deploy+PR │
+└─────────┘   └──────────────────┘   └─────────┘   └────┬─────┘   └────┬────┘   └────────────┘   └──────────┘
+                                                       │ ▲             │ ▲
+                                                       ▼ │             ▼ │
+                                          [REQUEST_CHANGES]     [test failures]
+                                          Dev fixes findings    Dev fixes regressions
+                                          → re-review           → re-run tests
 ```
 
-Tasks: Create branch → Implement → Commit → Review → Test → Fix regressions (if needed) → Update docs → Deploy & PR
+Two gates: reviewer can `REQUEST_CHANGES` to force a dev loop before tests run; failing tests force a fix-and-retry loop before deploy. `APPROVE_WITH_WARNINGS` proceeds.
 
 ### `/team-fix` — Emergency Bug Fixes
 
 ```text
-Shipper ──► Full Stack Dev + DB Admin ──► Shipper ──► Shipper ──► Documentor ──► Shipper
-Hotfix       Diagnose & patch              Commit      Test+Deploy  Update Docs    Merge
+┌─────────┐   ┌──────────────────┐   ┌─────────┐   ┌──────────┐   ┌────────────┐   ┌──────────┐
+│ Shipper │──►│ Full-Stack Dev + │──►│ Shipper │──►│ Shipper  │──►│ Documentor │──►│ Shipper  │
+│ Hotfix  │   │  DB Admin  (║)   │   │ Commit  │   │Test+Deploy│  │ Update Docs│   │ PR/Merge │
+└─────────┘   │ Diagnose & Fix   │   │   Fix   │   └──────────┘   └────────────┘   └──────────┘
+              └──────────────────┘
 ```
 
 No reviewer step — speed is the priority for emergencies.
@@ -145,8 +155,11 @@ No reviewer step — speed is the priority for emergencies.
 ### `/team-cleanup` — Technical Debt
 
 ```text
-Shipper ──► Reviewer ──► Full Stack Dev + DB Admin (parallel) ──► Shipper ──► Shipper ──► Documentor ──► Shipper
-Branch       Analyze       Refactor                                Commit      Test         Update Docs     PR
+┌─────────┐   ┌──────────┐   ┌──────────────────┐   ┌─────────┐   ┌─────────┐   ┌────────────┐   ┌─────────┐
+│ Shipper │──►│ Reviewer │──►│ Full-Stack Dev + │──►│ Shipper │──►│ Shipper │──►│ Documentor │──►│ Shipper │
+│ Branch  │   │ Analyze  │   │  DB Admin  (║)   │   │ Commit  │   │  Test   │   │ Update Docs│   │   PR    │
+└─────────┘   └──────────┘   │ Refactor         │   └─────────┘   └─────────┘   └────────────┘   └─────────┘
+                             └──────────────────┘
 ```
 
 Reviewer-first: analyze before refactoring.
@@ -154,17 +167,24 @@ Reviewer-first: analyze before refactoring.
 ### `/team-run-tests` — Batch Test and Fix
 
 ```text
-Shipper ──► Shipper ──► Full Stack Dev + DB Admin ──► Shipper ──► Shipper ──► Reviewer ──► Documentor ──► Shipper
-Branch       Run tests    Fix failures (parallel)      Commit      Re-test     Review       Update Docs     PR
-                              ↑                                       │
-                              └───────── loop if still failing ───────┘
+┌─────────┐   ┌─────────┐   ┌──────────────────┐   ┌─────────┐   ┌─────────┐   ┌──────────┐   ┌────────────┐   ┌─────────┐
+│ Shipper │──►│ Shipper │──►│ Full-Stack Dev + │──►│ Shipper │──►│ Shipper │──►│ Reviewer │──►│ Documentor │──►│ Shipper │
+│ Branch  │   │Run Tests│   │  DB Admin  (║)   │   │ Commit  │   │ Re-test │   │  Review  │   │ Update Docs│   │   PR    │
+└─────────┘   └─────────┘   │ Fix Failures     │   └─────────┘   └────┬────┘   └──────────┘   └────────────┘   └─────────┘
+                            └──────────────────┘                      │ ▲
+                                                                      ▼ │
+                                                       [if still failing] loop back to Fix Failures
 ```
 
 ### `/team-add-tests` — Critical Test Coverage
 
 ```text
-Shipper ──► Reviewer ──► Full Stack Dev + DB Admin (parallel) ──► Shipper ──► Documentor ──► Shipper
-Branch       Find gaps     Write minimal tests                     Run tests    Update Docs    Commit+PR
+┌─────────┐   ┌──────────┐   ┌──────────────────┐   ┌─────────┐   ┌────────────┐   ┌──────────┐
+│ Shipper │──►│ Reviewer │──►│ Full-Stack Dev + │──►│ Shipper │──►│ Documentor │──►│ Shipper  │
+│ Branch  │   │   Find   │   │  DB Admin  (║)   │   │Run Tests│   │ Update Docs│   │Commit+PR │
+└─────────┘   │ Critical │   │ Write Tests      │   └─────────┘   └────────────┘   └──────────┘
+              │   Gaps   │   └──────────────────┘
+              └──────────┘
 ```
 
 Test the 20% that prevents 80% of disasters.
@@ -269,6 +289,6 @@ The meta-agent will:
 - **Ship fast, learn faster** — working software over perfect software
 - **Minimal testing** — test the 20% that prevents 80% of disasters
 - **Speed focus** — `/team-fix` is fastest, `/team-ship` is balanced, `/team-cleanup` and `/team-run-tests` are thorough
-- **Non-blocking reviews** — reviewer suggestions don't stop deployment (except security)
+- **Reviewer gates `/team-ship`** — `REQUEST_CHANGES` forces a dev loop before tests run; warnings and notes are non-blocking. Other workflows treat reviewer findings as advisory.
 - **Clean pipeline** — shipper owns the entire git-to-production flow
 - **Quality without bureaucracy** — pragmatic reviews, not nitpicks
